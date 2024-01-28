@@ -1,9 +1,11 @@
-const fs = require("fs");
-const path = require("path");
-const http = require("http");
-const url = require("url");
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+const url = require('url');
 
-const replaceTemplate = require("./modules/replaceTemplate");
+const slugify = require('slugify');
+
+const replaceTemplate = require('./modules/replaceTemplate');
 
 // === FILES ===
 
@@ -39,37 +41,54 @@ const replaceTemplate = require("./modules/replaceTemplate");
 
 // === SERVER ===
 
-const data = fs.readFileSync(path.join(__dirname, "dev-data", "data.json"), "utf-8");
+const data = fs.readFileSync(
+  path.join(__dirname, 'dev-data', 'data.json'),
+  'utf-8'
+);
 const dataObj = JSON.parse(data);
 
-const templateOverview = fs.readFileSync(path.join(__dirname, "templates", "template-overview.html"), "utf-8");
-const templateCard = fs.readFileSync(path.join(__dirname, "templates", "template-card.html"), "utf-8");
-const templateProduct = fs.readFileSync(path.join(__dirname, "templates", "template-product.html"), "utf-8");
+const slugs = dataObj.map((el) => slugify(el.productName, { lower: true }));
+console.log('slugs: ', slugs);
+
+const templateOverview = fs.readFileSync(
+  path.join(__dirname, 'templates', 'template-overview.html'),
+  'utf-8'
+);
+const templateCard = fs.readFileSync(
+  path.join(__dirname, 'templates', 'template-card.html'),
+  'utf-8'
+);
+const templateProduct = fs.readFileSync(
+  path.join(__dirname, 'templates', 'template-product.html'),
+  'utf-8'
+);
 
 const server = http.createServer((req, res) => {
   const { query, pathname } = url.parse(req.url, true);
 
   // Overview page
-  if (pathname === "/" || pathname === "/overview") {
+  if (pathname === '/' || pathname === '/overview') {
     res.writeHead(200, {
-      "Content-type": "text/html",
+      'Content-type': 'text/html',
     });
 
-    const cardsHtml = dataObj.map((el) => replaceTemplate(templateCard, el)).join("");
-    const output = templateOverview.replace("{%PRODUCT_CARDS%}", cardsHtml);
+    const cardsHtml = dataObj
+      .map((el) => replaceTemplate(templateCard, el))
+      .join('');
+    const output = templateOverview.replace('{%PRODUCT_CARDS%}', cardsHtml);
     res.end(output);
 
     // Product page
-  } else if (pathname === "/product") {
+  } else if (pathname === '/product') {
     res.writeHead(200, {
-      "Content-type": "text/html",
+      'Content-type': 'text/html',
     });
     const product = dataObj[query.id];
     const output = replaceTemplate(templateProduct, product);
     res.end(output);
 
     // API
-  } else if (pathname === "/api") {
+  } else if (pathname === '/api') {
     // reads file each time, when we navigate to /api. Better to read once and store in variable (top-level readFileSync)
     // fs.readFile(path.join(__dirname, "dev-data", "data.json"), "utf-8", (err, data) => {
     //   const productData = JSON.parse(data);
@@ -79,19 +98,19 @@ const server = http.createServer((req, res) => {
     //   res.end(data);
     // });
     res.writeHead(200, {
-      "Content-type": "application/json",
+      'Content-type': 'application/json',
     });
     res.end(data);
 
     // Not found
   } else {
     res.writeHead(404, {
-      "Content-type": "text/html",
+      'Content-type': 'text/html',
     });
-    res.end("<h1>Page not found!</h1>");
+    res.end('<h1>Page not found!</h1>');
   }
 });
 
-server.listen(8000, "127.0.0.1", () => {
+server.listen(8000, '127.0.0.1', () => {
   console.log(`Listening to requests on port 8000...`);
 });
