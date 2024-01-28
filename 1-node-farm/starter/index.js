@@ -8,45 +8,80 @@ const url = require("url");
 // 1. Blocking, sync way
 
 // when locating in starter folder:
-const textInput = fs.readFileSync(path.join(__dirname, "txt", "input.txt"), "utf-8");
-console.log("textInput: ", textInput);
+// const textInput = fs.readFileSync(path.join(__dirname, "txt", "input.txt"), "utf-8");
+// console.log("textInput: ", textInput);
 
-const textOutput = `This is what we know about the avocado: ${textInput}.\nCreated on ${new Date().toLocaleString()}`;
-fs.writeFileSync(path.join(__dirname, "txt", "output.txt"), textOutput);
-console.log("File written");
+// const textOutput = `This is what we know about the avocado: ${textInput}.\nCreated on ${new Date().toLocaleString()}`;
+// fs.writeFileSync(path.join(__dirname, "txt", "output.txt"), textOutput);
+// console.log("File written");
 
 // 2. Non-blocking, async way
-fs.readFile(path.join(__dirname, "txt", "start.txt"), "utf-8", (err, data) => {
-  console.log("data: ", data);
-});
+// fs.readFile(path.join(__dirname, "txt", "start.txt"), "utf-8", (err, data) => {
+//   console.log("data: ", data);
+// });
 
-fs.readFile(path.join(__dirname, "txt", "start.txt"), "utf-8", (err, data1) => {
-  fs.readFile(path.join(__dirname, "txt", `${data1}.txt`), "utf-8", (err, data2) => {
-    console.log("data2: ", data2);
-    fs.readFile(path.join(__dirname, "txt", "append.txt"), "utf-8", (err, data3) => {
-      console.log("data3: ", data3);
+// fs.readFile(path.join(__dirname, "txt", "start.txt"), "utf-8", (err, data1) => {
+//   fs.readFile(path.join(__dirname, "txt", `${data1}.txt`), "utf-8", (err, data2) => {
+//     console.log("data2: ", data2);
+//     fs.readFile(path.join(__dirname, "txt", "append.txt"), "utf-8", (err, data3) => {
+//       console.log("data3: ", data3);
 
-      fs.writeFile(path.join(__dirname, "txt", "final.txt"), `${data2}\n${data3}`, "utf-8", () => {
-        console.log("Your file has been written! 😁");
-      });
-    });
-  });
-});
+//       fs.writeFile(path.join(__dirname, "txt", "final.txt"), `${data2}\n${data3}`, "utf-8", () => {
+//         console.log("Your file has been written! 😁");
+//       });
+//     });
+//   });
+// });
 
-console.log("will read file");
+// console.log("will read file");
 
 // === SERVER ===
 
 const data = fs.readFileSync(path.join(__dirname, "dev-data", "data.json"), "utf-8");
 const dataObj = JSON.parse(data);
 
+const templateOverview = fs.readFileSync(path.join(__dirname, "templates", "template-overview.html"), "utf-8");
+const templateCard = fs.readFileSync(path.join(__dirname, "templates", "template-card.html"), "utf-8");
+const templateProduct = fs.readFileSync(path.join(__dirname, "templates", "template-product.html"), "utf-8");
+
+const replaceTemplate = (temp, product) => {
+  let output = temp.replace(/{%PRODUCTNAME%}/g, product.productName);
+  output = output.replace(/{%IMAGE%}/g, product.image);
+  output = output.replace(/{%PRICE%}/g, product.price);
+  output = output.replace(/{%FROM%}/g, product.from);
+  output = output.replace(/{%NUTRIENTS%}/g, product.nutrients);
+  output = output.replace(/{%QUANTITY%}/g, product.quantity);
+  output = output.replace(/{%DESCRIPTION%}/g, product.description);
+  output = output.replace(/{%ID%}/g, product.id);
+
+  if (!product.organic) output = output.replace(/{%NOT_ORGANIC%}/g, "not-organic");
+  return output;
+};
+
 const server = http.createServer((req, res) => {
-  const pathName = req.url;
-  if (pathName === "/" || pathName === "/overview") {
-    res.end("This is the OVERVIEW!");
-  } else if (pathName === "/product") {
-    res.end("This is the PRODUCT!");
-  } else if (pathName === "/api") {
+  const { query, pathname } = url.parse(req.url, true);
+
+  // Overview page
+  if (pathname === "/" || pathname === "/overview") {
+    res.writeHead(200, {
+      "Content-type": "text/html",
+    });
+
+    const cardsHtml = dataObj.map((el) => replaceTemplate(templateCard, el)).join("");
+    const output = templateOverview.replace("{%PRODUCT_CARDS%}", cardsHtml);
+    res.end(output);
+
+    // Product page
+  } else if (pathname === "/product") {
+    res.writeHead(200, {
+      "Content-type": "text/html",
+    });
+    const product = dataObj[query.id];
+    const output = replaceTemplate(templateProduct, product);
+    res.end(output);
+
+    // API
+  } else if (pathname === "/api") {
     // reads file each time, when we navigate to /api. Better to read once and store in variable (top-level readFileSync)
     // fs.readFile(path.join(__dirname, "dev-data", "data.json"), "utf-8", (err, data) => {
     //   const productData = JSON.parse(data);
@@ -59,6 +94,8 @@ const server = http.createServer((req, res) => {
       "Content-type": "application/json",
     });
     res.end(data);
+
+    // Not found
   } else {
     res.writeHead(404, {
       "Content-type": "text/html",
